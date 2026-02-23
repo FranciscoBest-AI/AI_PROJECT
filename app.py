@@ -1,4 +1,6 @@
-# ai_content_manager_v4.py (Flask-ready)
+# ==========================================
+# Niches & Ideas
+# ==========================================
 
 from flask import Flask, jsonify
 import random
@@ -8,6 +10,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # Niches & Ideas
 # ==========================================
+
 niches_ideas = {
     "Sculpture Carving": [
         "Full Process Sculpture",
@@ -24,6 +27,7 @@ niches_ideas = {
 # ==========================================
 # Advanced Content Generator
 # ==========================================
+
 class AdvancedContentGenerator:
     def __init__(self):
         pass
@@ -38,9 +42,8 @@ class AdvancedContentGenerator:
         return random.choice(motivations)
 
     def generate_full_process_script(self, niche):
-        """Generates a full process hook + script + CTA + caption + hashtags"""
         hook = f"This {niche.lower()} will become something amazing!"
-        
+
         if niche == "Sculpture Carving":
             script_steps = [
                 "Step 1: I mark the proportions carefully.",
@@ -83,6 +86,7 @@ class AdvancedContentGenerator:
 # ==========================================
 # Content Manager
 # ==========================================
+
 class ContentManager:
     def __init__(self, niches):
         self.niches = niches
@@ -90,13 +94,11 @@ class ContentManager:
         self.generator = AdvancedContentGenerator()
 
     def generate_daily_content(self):
-        """Generates full process content for all niches"""
         for niche in self.niches:
             content = self.generator.generate_full_process_script(niche)
             self.contents.append(content)
 
     def show_contents(self):
-        """Return a string of all generated content for display"""
         display_text = ""
         for c in self.contents:
             display_text += (
@@ -111,7 +113,6 @@ class ContentManager:
         return display_text
 
     def export_csv(self, filename):
-        """Export generated contents to CSV"""
         with open(filename, "w", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(["Type", "Hook", "Script", "CTA", "Caption", "Hashtags"])
@@ -122,7 +123,6 @@ class ContentManager:
                 ])
 
     def schedule_posts(self, user_name):
-        """Simulate a posting schedule (just prints for now)"""
         today = datetime.now()
         schedule = []
         for i, content in enumerate(self.contents, start=1):
@@ -131,13 +131,11 @@ class ContentManager:
         return schedule
 
     def ask_ai(self, niche, style, user_name):
-        """Return AI suggestion placeholder"""
         return f"AI suggestion for {niche} ({style}) for {user_name}"
 
 # ==========================================
 # Flask API Wrapper
 # ==========================================
-from flask import Flask, jsonify
 
 app = Flask(__name__)
 manager = ContentManager(niches_ideas)
@@ -145,21 +143,25 @@ manager.generate_daily_content()
 
 @app.route("/")
 def home():
-    """Return all generated content as JSON"""
     return jsonify({"contents": manager.show_contents()})
 
 @app.route("/export")
 def export_csv_route():
-    """Export the daily content to CSV"""
     manager.export_csv("Daily_Content_Terminal.csv")
     return jsonify({"status": "CSV exported successfully!"})
 
 @app.route("/suggest/<niche>/<style>/<user_name>")
 def suggest_route(niche, style, user_name):
-    """Return AI suggestion placeholder"""
     suggestion = manager.ask_ai(niche, style, user_name)
     return jsonify({"suggestion": suggestion})
 
-# Run locally if needed
+# ==========================================
+# Health check route for Render
+# ==========================================
+
+@app.route("/healthz")
+def health_check():
+    return {"status": "ok"}
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
