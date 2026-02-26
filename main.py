@@ -20,7 +20,8 @@ class AIApp(App):
 
     def generate(self, instance):
         try:
-            response = requests.get("https://your-backend-url.onrender.com/")
+            # NEW backend URL
+            response = requests.get("https://ai-project-z540.onrender.com/")
             self.label.text = response.text
         except:
             self.label.text = "Error connecting to AI"
