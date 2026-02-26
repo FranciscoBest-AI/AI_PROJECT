@@ -27,7 +27,7 @@ orientation = portrait
 # (bool) Fullscreen mode
 fullscreen = 0
 
-# (str) App icon (optional, place icon.png in project root)
+# (str) App icon (optional)
 icon.filename = %(source.dir)s/icon.png
 
 # (str) Version of your app
