@@ -15,40 +15,42 @@ jobs:
       PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:$PATH
 
     steps:
-    # 1️⃣ Checkout repository
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    # 2️⃣ Install system dependencies
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y tar wget unzip git openjdk-17-jdk python3-pip zip
-        pip install --upgrade pip
-        pip install buildozer cython
+      - name: Install tar
+        run: sudo apt-get update && sudo apt-get install -y tar
 
-    # 3️⃣ Setup Android SDK
-    - name: Setup Android SDK
-      run: |
-        mkdir -p $ANDROID_HOME/cmdline-tools
-        cd $ANDROID_HOME/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip
-        rm cmdline-tools.zip
-        if [ ! -d "latest" ]; then
-          mv cmdline-tools latest
-        fi
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+      # 2️⃣ Install system dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget unzip git openjdk-17-jdk python3-pip zip
+          pip install --upgrade pip
+          pip install buildozer cython
 
-    # 4️⃣ Build APK
-    - name: Build APK
-      run: |
-        buildozer android debug
+      # 3️⃣ Setup Android SDK
+      - name: Setup Android SDK
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          rm cmdline-tools.zip
+          if [ ! -d "latest" ]; then
+            mv cmdline-tools latest
+          fi
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-    # 5️⃣ Upload APK artifact
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: AI_PROJECT-APK
-        path: bin/*.apk
+      # 4️⃣ Build APK
+      - name: Build APK
+        run: |
+          buildozer android debug
+
+      # 5️⃣ Upload APK artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI_PROJECT-APK
+          path: bin/*.apk
