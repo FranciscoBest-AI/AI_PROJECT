@@ -19,7 +19,7 @@ source.main = main.py
 source.include_exts = py,png,jpg,kv,json
 
 # (list) Python modules your app uses
-requirements = python3,kivy,random
+requirements = python3,kivy
 
 # (str) Supported orientation
 orientation = portrait
@@ -33,17 +33,27 @@ icon.filename = %(source.dir)s/icon.png
 # (str) Version of your app
 version = 1.0.0
 
-# (int) Android API level
+# -----------------------------
+# ANDROID SETTINGS (STABLE)
+# -----------------------------
+
+# Android API to use
 android.api = 33
+
+# Minimum Android API
 android.minapi = 21
+
+# Target SDK
 android.sdk = 33
+
+# NDK version
 android.ndk = 25b
 
-# (bool) Include Java/Kotlin support
-android.archive = 1
+# Force stable build tools (VERY IMPORTANT)
+android.sdk_build_tools = 33.0.2
 
-# (str) Permissions your app may need
+# Permissions
 android.permissions = INTERNET
 
-# (int) Logging level (optional, 2 = info)
+# Logging level
 log_level = 2
