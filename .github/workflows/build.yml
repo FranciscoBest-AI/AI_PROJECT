@@ -12,7 +12,6 @@ jobs:
 
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      PATH: $PATH:${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools
 
     steps:
       - name: Checkout code
@@ -21,7 +20,6 @@ jobs:
       - name: Install tar
         run: sudo apt-get update && sudo apt-get install -y tar
 
-      # System dependencies (no tar here, already installed above)
       - name: Install system dependencies
         run: |
           sudo apt update
@@ -39,8 +37,8 @@ jobs:
           if [ ! -d "latest" ]; then
             mv cmdline-tools latest
           fi
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - name: Build APK
         run: |
