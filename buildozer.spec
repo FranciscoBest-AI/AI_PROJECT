@@ -34,7 +34,7 @@ icon.filename = %(source.dir)s/icon.png
 version = 1.0.0
 
 # -----------------------------
-# ANDROID SETTINGS (STABLE)
+# ANDROID SETTINGS (LOCKED STABLE)
 # -----------------------------
 
 # Android API to use
@@ -49,8 +49,11 @@ android.sdk = 33
 # NDK version
 android.ndk = 25b
 
-# Force stable build tools (VERY IMPORTANT)
+# Force stable build tools
 android.sdk_build_tools = 33.0.2
+
+# VERY IMPORTANT: lock python-for-android to stable
+p4a.branch = stable
 
 # Permissions
 android.permissions = INTERNET
