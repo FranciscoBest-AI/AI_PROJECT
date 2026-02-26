@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout your repo
+    # 1️⃣ Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v3
 
@@ -21,7 +21,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    # 3️⃣ Install Buildozer & dependencies
+    # 3️⃣ Install Buildozer
     - name: Install Buildozer
       run: |
         pip install --upgrade pip
@@ -32,25 +32,26 @@ jobs:
       run: |
         mkdir -p ~/.buildozer/android/platform
         cd ~/.buildozer/android/platform
-        # Download command line tools if not already installed
-        if [ ! -f tools/bin/sdkmanager ]; then
+        # Download command line tools if missing
+        if [ ! -d cmdline-tools/latest ]; then
           wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip
-          mv cmdline-tools latest
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/
         fi
 
-    # 5️⃣ Accept Android SDK licenses automatically
+    # 5️⃣ Accept Android SDK licenses (fixed path)
     - name: Accept Android SDK licenses
-      run: yes | ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager --licenses
+      run: yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    # 6️⃣ Build the APK
+    # 6️⃣ Build APK
     - name: Build APK
       run: |
-        # Force stable build-tools version in buildozer.spec
+        # Force stable build-tools version
         sed -i 's/^android.build_tools_version = .*/android.build_tools_version = 33.0.2/' buildozer.spec
         buildozer android debug
 
-    # 7️⃣ Upload APK artifact (v4)
+    # 7️⃣ Upload APK
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
