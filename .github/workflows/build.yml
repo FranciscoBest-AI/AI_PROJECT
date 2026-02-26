@@ -1,66 +1,48 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main  # or your branch name
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:$PATH
+
     steps:
-    # 1️⃣ Checkout repository
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    # 2️⃣ Setup Python
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: 3.10
 
-    # 3️⃣ Install Buildozer & Cython
-    - name: Install Buildozer
+    - name: Install dependencies
       run: |
+        sudo apt update
+        sudo apt install -y openjdk-17-jdk wget unzip python3-pip zip
         pip install --upgrade pip
         pip install buildozer cython
 
-    # 4️⃣ Setup Android SDK (fixed for latest cmdline-tools)
     - name: Setup Android SDK
       run: |
-        mkdir -p ~/.buildozer/android/platform/android-sdk
-        cd ~/.buildozer/android/platform/android-sdk
-        if [ ! -d cmdline-tools/latest ]; then
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
-          mkdir -p cmdline-tools/latest
-          # Move contents directly to latest (no nested folder)
-          mv cmdline-tools/* cmdline-tools/latest/
+        mkdir -p $ANDROID_HOME/cmdline-tools
+        cd $ANDROID_HOME/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip -q cmdline-tools.zip
+        rm cmdline-tools.zip
+        # Move folder to 'latest' only if it's not already 'latest'
+        if [ ! -d "latest" ]; then
+          mv cmdline-tools latest
         fi
+        yes | sdkmanager --licenses
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-    # 5️⃣ Accept Android SDK licenses
-    - name: Accept Android SDK licenses
-      run: |
-        SDK_MANAGER="$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager"
-        if [ -f "$SDK_MANAGER" ]; then
-          yes | $SDK_MANAGER --licenses
-        else
-          echo "⚠️ sdkmanager not found!"
-          exit 1
-        fi
-
-    # 6️⃣ Build APK
     - name: Build APK
       run: |
-        # Optional: force stable build-tools version
-        sed -i 's/^android.build_tools_version = .*/android.build_tools_version = 33.0.2/' buildozer.spec
         buildozer android debug
-
-    # 7️⃣ Upload APK artifact
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug.apk
-        path: bin/*.apk
