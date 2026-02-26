@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches:
-      - main  # or your branch name
+      - main  # or your default branch
 
 jobs:
   build:
@@ -14,21 +14,19 @@ jobs:
       PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:$PATH
 
     steps:
+    # 1️⃣ Checkout repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.10
-
-    - name: Install dependencies
+    # 2️⃣ Install required system packages
+    - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y openjdk-17-jdk wget unzip python3-pip zip
+        sudo apt install -y tar wget unzip git openjdk-17-jdk python3-pip zip
         pip install --upgrade pip
         pip install buildozer cython
 
+    # 3️⃣ Setup Android SDK
     - name: Setup Android SDK
       run: |
         mkdir -p $ANDROID_HOME/cmdline-tools
@@ -43,6 +41,14 @@ jobs:
         yes | sdkmanager --licenses
         sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
+    # 4️⃣ Build the APK
     - name: Build APK
       run: |
         buildozer android debug
+
+    # 5️⃣ Save APK as artifact
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: AI_PROJECT-APK
+        path: bin/*.apk
