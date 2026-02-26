@@ -21,7 +21,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    # 3️⃣ Install Buildozer
+    # 3️⃣ Install Buildozer & Cython
     - name: Install Buildozer
       run: |
         pip install --upgrade pip
@@ -39,18 +39,25 @@ jobs:
           unzip -q cmdline-tools.zip -d cmdline-tools/latest
         fi
 
-    # 5️⃣ Accept Android SDK licenses
+    # 5️⃣ Accept Android SDK licenses automatically
     - name: Accept Android SDK licenses
-      run: yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/cmdline-tools/bin/sdkmanager --licenses
+      run: |
+        SDK_MANAGER="$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/cmdline-tools/bin/sdkmanager"
+        if [ -f "$SDK_MANAGER" ]; then
+          yes | $SDK_MANAGER --licenses
+        else
+          echo "⚠️ sdkmanager not found!"
+          exit 1
+        fi
 
     # 6️⃣ Build APK
     - name: Build APK
       run: |
-        # Set stable build-tools version
+        # Use stable build-tools version
         sed -i 's/^android.build_tools_version = .*/android.build_tools_version = 33.0.2/' buildozer.spec
         buildozer android debug
 
-    # 7️⃣ Upload APK
+    # 7️⃣ Upload APK artifact
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
