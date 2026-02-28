@@ -2,14 +2,10 @@
 # Niches & Ideas
 # ==========================================
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template_string
 import random
 import csv
 from datetime import datetime, timedelta
-
-# ==========================================
-# Niches & Ideas
-# ==========================================
 
 niches_ideas = {
     "Sculpture Carving": [
@@ -29,9 +25,6 @@ niches_ideas = {
 # ==========================================
 
 class AdvancedContentGenerator:
-    def __init__(self):
-        pass
-
     def motivate(self):
         motivations = [
             "Keep building your skills daily!",
@@ -94,23 +87,13 @@ class ContentManager:
         self.generator = AdvancedContentGenerator()
 
     def generate_daily_content(self):
+        self.contents = []
         for niche in self.niches:
             content = self.generator.generate_full_process_script(niche)
             self.contents.append(content)
 
     def show_contents(self):
-        display_text = ""
-        for c in self.contents:
-            display_text += (
-                f"{c['type']}\n\n"
-                f"HOOK:\n{c['hook']}\n\n"
-                f"SCRIPT:\n{c['script']}\n\n"
-                f"CTA:\n{c['cta']}\n\n"
-                f"CAPTION:\n{c['caption']}\n\n"
-                f"HASHTAGS:\n{c['hashtags']}\n"
-                "-------------------------------------\n\n"
-            )
-        return display_text
+        return self.contents
 
     def export_csv(self, filename):
         with open(filename, "w", newline='') as f:
@@ -134,15 +117,61 @@ class ContentManager:
         return f"AI suggestion for {niche} ({style}) for {user_name}"
 
 # ==========================================
-# Flask API Wrapper
+# Flask App
 # ==========================================
 
 app = Flask(__name__)
 manager = ContentManager(niches_ideas)
 manager.generate_daily_content()
 
+# ------------------------------
+# Web Interface
+# ------------------------------
+
+HTML_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Francis AI Content Manager</title>
+</head>
+<body style="font-family: Arial; margin: 40px;">
+    <h1>Francis AI Content Manager 🚀</h1>
+    <p>Your AI is live and running.</p>
+    <hr>
+    {% for content in contents %}
+        <h2>{{ content.type }}</h2>
+        <strong>Hook:</strong>
+        <p>{{ content.hook }}</p>
+
+        <strong>Script:</strong>
+        <pre>{{ content.script }}</pre>
+
+        <strong>CTA:</strong>
+        <p>{{ content.cta }}</p>
+
+        <strong>Caption:</strong>
+        <p>{{ content.caption }}</p>
+
+        <strong>Hashtags:</strong>
+        <p>{{ content.hashtags }}</p>
+
+        <hr>
+    {% endfor %}
+</body>
+</html>
+"""
+
 @app.route("/")
 def home():
+    manager.generate_daily_content()
+    return render_template_string(HTML_PAGE, contents=manager.show_contents())
+
+# ------------------------------
+# Keep Original API Access
+# ------------------------------
+
+@app.route("/api")
+def api_contents():
     return jsonify({"contents": manager.show_contents()})
 
 @app.route("/export")
@@ -154,10 +183,6 @@ def export_csv_route():
 def suggest_route(niche, style, user_name):
     suggestion = manager.ask_ai(niche, style, user_name)
     return jsonify({"suggestion": suggestion})
-
-# ==========================================
-# Health check route for Render
-# ==========================================
 
 @app.route("/healthz")
 def health_check():
