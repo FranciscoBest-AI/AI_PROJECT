@@ -2,7 +2,7 @@
 # Niches & Ideas
 # ==========================================
 
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template_string, request
 import random
 import csv
 from datetime import datetime, timedelta
@@ -167,7 +167,7 @@ def home():
     return render_template_string(HTML_PAGE, contents=manager.show_contents())
 
 # ------------------------------
-# Keep Original API Access
+# Original API Routes
 # ------------------------------
 
 @app.route("/api")
@@ -188,5 +188,11 @@ def suggest_route(niche, style, user_name):
 def health_check():
     return {"status": "ok"}
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+# ------------------------------
+# NEW: Generate Route for Postman
+# ------------------------------
+
+@app.route("/generate", methods=["POST"])
+def generate_route():
+    data = request.get_json()
+    prompt = data.get("prompt", "").lower()
