@@ -1,12 +1,18 @@
 # ==========================================
-# Niches & Ideas
+# app.py (Updated Version)
 # ==========================================
 
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request, send_from_directory
 import random
 import csv
+import os
 from datetime import datetime, timedelta
+from video_generator import create_video_from_images
+from image_fetcher import fetch_free_image
 
+# ------------------------------
+# Niches & Ideas
+# ------------------------------
 niches_ideas = {
     "Sculpture Carving": [
         "Full Process Sculpture",
@@ -20,9 +26,9 @@ niches_ideas = {
     ]
 }
 
-# ==========================================
+# ------------------------------
 # Advanced Content Generator
-# ==========================================
+# ------------------------------
 
 class AdvancedContentGenerator:
     def motivate(self):
@@ -76,9 +82,9 @@ class AdvancedContentGenerator:
             "hashtags": hashtags
         }
 
-# ==========================================
+# ------------------------------
 # Content Manager
-# ==========================================
+# ------------------------------
 
 class ContentManager:
     def __init__(self, niches):
@@ -95,30 +101,9 @@ class ContentManager:
     def show_contents(self):
         return self.contents
 
-    def export_csv(self, filename):
-        with open(filename, "w", newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Type", "Hook", "Script", "CTA", "Caption", "Hashtags"])
-            for c in self.contents:
-                writer.writerow([
-                    c.get("type"), c.get("hook"), c.get("script"),
-                    c.get("cta"), c.get("caption"), c.get("hashtags")
-                ])
-
-    def schedule_posts(self, user_name):
-        today = datetime.now()
-        schedule = []
-        for i, content in enumerate(self.contents, start=1):
-            post_day = today + timedelta(days=i)
-            schedule.append(f"{post_day.strftime('%Y-%m-%d')}: {content['type']}")
-        return schedule
-
-    def ask_ai(self, niche, style, user_name):
-        return f"AI suggestion for {niche} ({style}) for {user_name}"
-
-# ==========================================
-# Flask App
-# ==========================================
+# ------------------------------
+# Flask App Setup
+# ------------------------------
 
 app = Flask(__name__)
 manager = ContentManager(niches_ideas)
@@ -138,6 +123,7 @@ HTML_PAGE = """
     <h1>Francis AI Content Manager 🚀</h1>
     <p>Your AI is live and running.</p>
     <hr>
+
     {% for content in contents %}
         <h2>{{ content.type }}</h2>
         <strong>Hook:</strong>
@@ -157,6 +143,42 @@ HTML_PAGE = """
 
         <hr>
     {% endfor %}
+
+    <h2>🎬 Generate Sculpture Video</h2>
+    <select id="niche">
+        {% for niche in contents %}
+            <option value="{{ niche.type }}">{{ niche.type }}</option>
+        {% endfor %}
+    </select>
+    <button onclick="generateVideo()">Generate Video</button>
+    <p id="status"></p>
+    <video id="videoPreview" width="360" height="640" controls style="display:none;"></video>
+    <a id="downloadLink" href="" download style="display:none;">Download Video</a>
+
+<script>
+function generateVideo() {
+    const niche = document.getElementById("niche").value;
+    document.getElementById("status").innerText = "Generating video, please wait...";
+
+    fetch("/generate-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "niche": niche })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("status").innerText = "Video ready!";
+        const video = document.getElementById("videoPreview");
+        video.src = data.video_url + "?t=" + new Date().getTime();
+        video.style.display = "block";
+
+        const link = document.getElementById("downloadLink");
+        link.href = data.video_url;
+        link.style.display = "inline";
+    });
+}
+</script>
+
 </body>
 </html>
 """
@@ -174,25 +196,63 @@ def home():
 def api_contents():
     return jsonify({"contents": manager.show_contents()})
 
-@app.route("/export")
-def export_csv_route():
-    manager.export_csv("Daily_Content_Terminal.csv")
-    return jsonify({"status": "CSV exported successfully!"})
+# ------------------------------
+# NEW: Generate Video Route
+# ------------------------------
 
-@app.route("/suggest/<niche>/<style>/<user_name>")
-def suggest_route(niche, style, user_name):
-    suggestion = manager.ask_ai(niche, style, user_name)
-    return jsonify({"suggestion": suggestion})
+@app.route("/generate-video", methods=["POST"])
+def generate_video():
+    data = request.get_json()
+    niche_type = data.get("niche", "Sculpture Carving Full Process")
 
+    # Find the niche name from type
+    niche_name = niche_type.split(" Full Process")[0]
+
+    # Scene breakdown (8 scenes)
+    scenes = [
+        "Raw wood block on workbench",
+        "Rough shaping with chisel",
+        "Face detailing",
+        "Hand shaping",
+        "Fine carving details",
+        "Sanding process",
+        "Applying oil finish",
+        "Final polished sculpture reveal"
+    ]
+
+    # Generate prompts for each scene
+    image_prompts = [
+        f"Vertical 9:16 realistic {niche_name} carving workshop, {scene}, cinematic lighting, detailed wood texture"
+        for scene in scenes
+    ]
+
+    # Fetch images (using free image platform)
+    images = []
+    for i, prompt in enumerate(image_prompts):
+        img_path = fetch_free_image(prompt, f"static/images/{niche_name.replace(' ', '_')}_{i+1}.png")
+        images.append(img_path)
+
+    # Create video
+    video_filename = f"{niche_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+    video_path = f"static/videos/{video_filename}"
+    create_video_from_images(images, video_path, duration_per_scene=7.5)
+
+    video_url = f"/static/videos/{video_filename}"
+    return jsonify({"video_url": video_url})
+
+# ------------------------------
+# Health Check
+# ------------------------------
 @app.route("/healthz")
 def health_check():
     return {"status": "ok"}
 
 # ------------------------------
-# NEW: Generate Route for Postman
+# Run Flask App
 # ------------------------------
-
-@app.route("/generate", methods=["POST"])
-def generate_route():
-    data = request.get_json()
-    prompt = data.get("prompt", "").lower()
+if __name__ == "__main__":
+    if not os.path.exists("static/videos"):
+        os.makedirs("static/videos")
+    if not os.path.exists("static/images"):
+        os.makedirs("static/images")
+    app.run(host="0.0.0.0", port=5000, debug=True)
