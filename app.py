@@ -1,12 +1,13 @@
 # ==========================================
-# app.py (Updated Version)
+# app.py (BACKGROUND VIDEO VERSION - SAFE)
 # ==========================================
 
-from flask import Flask, jsonify, render_template_string, request, send_from_directory
+from flask import Flask, jsonify, render_template_string, request
 import random
-import csv
 import os
-from datetime import datetime, timedelta
+import threading
+import uuid
+from datetime import datetime
 from video_generator import create_video_from_images
 from image_fetcher import fetch_free_image
 
@@ -31,54 +32,39 @@ niches_ideas = {
 # ------------------------------
 
 class AdvancedContentGenerator:
-    def motivate(self):
-        motivations = [
-            "Keep building your skills daily!",
-            "Patience turns ideas into masterpieces.",
-            "Consistency is the secret to mastery.",
-            "Every small step creates big results."
-        ]
-        return random.choice(motivations)
-
     def generate_full_process_script(self, niche):
         hook = f"This {niche.lower()} will become something amazing!"
 
         if niche == "Sculpture Carving":
             script_steps = [
                 "Step 1: I mark the proportions carefully.",
-                "Step 2: I remove the excess wood using my chisel.",
-                "Step 3: I begin shaping the body structure.",
-                "Step 4: I carve the facial details.",
-                "Step 5: I smooth and polish the surface.",
-                "Step 6: Final touch-ups to make it perfect."
+                "Step 2: I remove excess wood.",
+                "Step 3: I shape the structure.",
+                "Step 4: I carve fine details.",
+                "Step 5: I polish and finish."
             ]
-            hashtags = "#Sculpture #WoodCarving #ArtProcess #AfricanArt"
+            hashtags = "#Sculpture #WoodCarving #ArtProcess"
 
         elif niche == "Car Building":
             script_steps = [
-                "Step 1: I inspect the car frame.",
-                "Step 2: I disassemble old parts carefully.",
-                "Step 3: I repair and replace components.",
-                "Step 4: I assemble the engine and systems.",
-                "Step 5: I paint and detail the car.",
-                "Step 6: Final testing and adjustments."
+                "Step 1: Inspect the frame.",
+                "Step 2: Disassemble old parts.",
+                "Step 3: Repair components.",
+                "Step 4: Reassemble engine.",
+                "Step 5: Final detailing."
             ]
-            hashtags = "#CarRestoration #DIYCar #Engineering #CarMods"
+            hashtags = "#CarRestoration #DIYCar #Engineering"
 
         else:
-            script_steps = ["Step 1: Start the project...", "Step 2: Continue..."]
+            script_steps = ["Step 1: Start project.", "Step 2: Continue..."]
             hashtags = "#CreativeProcess"
 
         script = "\n".join(script_steps)
-        cta = "Follow to see the final result!"
-        caption = f"From start to finish, watch this {niche.lower()} come alive."
 
         return {
             "type": f"{niche} Full Process",
             "hook": hook,
             "script": script,
-            "cta": cta,
-            "caption": caption,
             "hashtags": hashtags
         }
 
@@ -102,12 +88,19 @@ class ContentManager:
         return self.contents
 
 # ------------------------------
-# Flask App Setup
+# Flask Setup
 # ------------------------------
 
 app = Flask(__name__)
 manager = ContentManager(niches_ideas)
 manager.generate_daily_content()
+
+# In-memory job tracking
+video_jobs = {}
+
+# Ensure folders exist
+os.makedirs("static/videos", exist_ok=True)
+os.makedirs("static/images", exist_ok=True)
 
 # ------------------------------
 # Web Interface
@@ -126,25 +119,11 @@ HTML_PAGE = """
 
     {% for content in contents %}
         <h2>{{ content.type }}</h2>
-        <strong>Hook:</strong>
-        <p>{{ content.hook }}</p>
-
-        <strong>Script:</strong>
         <pre>{{ content.script }}</pre>
-
-        <strong>CTA:</strong>
-        <p>{{ content.cta }}</p>
-
-        <strong>Caption:</strong>
-        <p>{{ content.caption }}</p>
-
-        <strong>Hashtags:</strong>
-        <p>{{ content.hashtags }}</p>
-
         <hr>
     {% endfor %}
 
-    <h2>🎬 Generate Sculpture Video</h2>
+    <h2>🎬 Generate Video (15-30 sec)</h2>
     <select id="niche">
         {% for niche in contents %}
             <option value="{{ niche.type }}">{{ niche.type }}</option>
@@ -158,23 +137,40 @@ HTML_PAGE = """
 <script>
 function generateVideo() {
     const niche = document.getElementById("niche").value;
-    document.getElementById("status").innerText = "Generating video, please wait...";
+    document.getElementById("status").innerText = "Starting video generation...";
 
     fetch("/generate-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ "niche": niche })
     })
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
-        document.getElementById("status").innerText = "Video ready!";
-        const video = document.getElementById("videoPreview");
-        video.src = data.video_url + "?t=" + new Date().getTime();
-        video.style.display = "block";
+        checkStatus(data.job_id);
+    });
+}
 
-        const link = document.getElementById("downloadLink");
-        link.href = data.video_url;
-        link.style.display = "inline";
+function checkStatus(jobId) {
+    fetch("/video-status/" + jobId)
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "processing") {
+            document.getElementById("status").innerText = "Rendering video...";
+            setTimeout(() => checkStatus(jobId), 5000);
+        } 
+        else if (data.status === "completed") {
+            document.getElementById("status").innerText = "Video ready!";
+            const video = document.getElementById("videoPreview");
+            video.src = data.video_url + "?t=" + new Date().getTime();
+            video.style.display = "block";
+
+            const link = document.getElementById("downloadLink");
+            link.href = data.video_url;
+            link.style.display = "inline";
+        } 
+        else {
+            document.getElementById("status").innerText = "Video failed.";
+        }
     });
 }
 </script>
@@ -189,70 +185,78 @@ def home():
     return render_template_string(HTML_PAGE, contents=manager.show_contents())
 
 # ------------------------------
-# Original API Routes
+# Background Video Processor
 # ------------------------------
 
-@app.route("/api")
-def api_contents():
-    return jsonify({"contents": manager.show_contents()})
+def process_video_job(job_id, niche_name):
+    try:
+        scenes = [
+            "Workshop setup",
+            "Shaping process",
+            "Detail carving",
+            "Sanding and smoothing",
+            "Final reveal"
+        ]
+
+        images = []
+        for i, scene in enumerate(scenes):
+            prompt = f"Vertical 9:16 realistic {niche_name} {scene}, cinematic lighting"
+            img_path = fetch_free_image(prompt, f"static/images/{job_id}_{i}.png")
+            images.append(img_path)
+
+        video_filename = f"{job_id}.mp4"
+        video_path = f"static/videos/{video_filename}"
+
+        create_video_from_images(
+            images,
+            video_path,
+            duration_per_scene=5,      # 5 sec × 5 scenes = 25 sec
+            resolution=(720, 1280)     # 720p vertical
+        )
+
+        video_jobs[job_id] = {
+            "status": "completed",
+            "video_url": f"/static/videos/{video_filename}"
+        }
+
+    except Exception as e:
+        video_jobs[job_id] = {
+            "status": "failed",
+            "error": str(e)
+        }
 
 # ------------------------------
-# NEW: Generate Video Route
+# Routes
 # ------------------------------
 
 @app.route("/generate-video", methods=["POST"])
 def generate_video():
     data = request.get_json()
     niche_type = data.get("niche", "Sculpture Carving Full Process")
-
-    # Find the niche name from type
     niche_name = niche_type.split(" Full Process")[0]
 
-    # Scene breakdown (8 scenes)
-    scenes = [
-        "Raw wood block on workbench",
-        "Rough shaping with chisel",
-        "Face detailing",
-        "Hand shaping",
-        "Fine carving details",
-        "Sanding process",
-        "Applying oil finish",
-        "Final polished sculpture reveal"
-    ]
+    job_id = str(uuid.uuid4())
+    video_jobs[job_id] = {"status": "processing"}
 
-    # Generate prompts for each scene
-    image_prompts = [
-        f"Vertical 9:16 realistic {niche_name} carving workshop, {scene}, cinematic lighting, detailed wood texture"
-        for scene in scenes
-    ]
+    thread = threading.Thread(target=process_video_job, args=(job_id, niche_name))
+    thread.start()
 
-    # Fetch images (using free image platform)
-    images = []
-    for i, prompt in enumerate(image_prompts):
-        img_path = fetch_free_image(prompt, f"static/images/{niche_name.replace(' ', '_')}_{i+1}.png")
-        images.append(img_path)
+    return jsonify({"job_id": job_id})
 
-    # Create video
-    video_filename = f"{niche_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
-    video_path = f"static/videos/{video_filename}"
-    create_video_from_images(images, video_path, duration_per_scene=7.5)
+@app.route("/video-status/<job_id>")
+def video_status(job_id):
+    job = video_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Invalid job ID"}), 404
+    return jsonify(job)
 
-    video_url = f"/static/videos/{video_filename}"
-    return jsonify({"video_url": video_url})
-
-# ------------------------------
-# Health Check
-# ------------------------------
 @app.route("/healthz")
 def health_check():
     return {"status": "ok"}
 
 # ------------------------------
-# Run Flask App
+# Run Local Only
 # ------------------------------
+
 if __name__ == "__main__":
-    if not os.path.exists("static/videos"):
-        os.makedirs("static/videos")
-    if not os.path.exists("static/images"):
-        os.makedirs("static/images")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
