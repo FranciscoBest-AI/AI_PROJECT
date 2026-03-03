@@ -1,41 +1,56 @@
+# ==========================================
+# image_fetcher.py (Optimized Version)
+# ==========================================
+
 import requests
 import base64
 import time
+from PIL import Image
+from io import BytesIO
 
-def fetch_free_image(prompt, save_path):
+MAX_WIDTH = 720
+MAX_HEIGHT = 1280
+
+def fetch_free_image(prompt, save_path, max_attempts=3):
     """
     Fetch AI-generated image from Hugging Face Stable Diffusion space.
     Saves the image to save_path.
+    Optimized for 720x1280 vertical videos and stable retries.
     """
-    try:
-        # Public inference API for SD
-        API_URL = "https://hf.space/embed/stabilityai/stable-diffusion/api/predict/"
-        headers = {"Accept": "application/json"}
+    API_URL = "https://hf.space/embed/stabilityai/stable-diffusion/api/predict/"
+    headers = {"Accept": "application/json"}
+    payload = {"data": [prompt]}
 
-        payload = {"data": [prompt]}
-        response = requests.post(API_URL, json=payload, headers=headers, timeout=60)
-
-        # Sometimes free space takes a while
-        attempts = 0
-        while response.status_code != 200 and attempts < 3:
-            time.sleep(5)
+    attempt = 0
+    while attempt < max_attempts:
+        try:
             response = requests.post(API_URL, json=payload, headers=headers, timeout=60)
-            attempts += 1
+            if response.status_code != 200:
+                raise Exception(f"Status code {response.status_code}")
+            data = response.json()
+            image_base64 = data['data'][0].split(",")[-1]
+            image_bytes = base64.b64decode(image_base64)
 
-        data = response.json()
-        image_base64 = data['data'][0].split(",")[-1]
-        image_bytes = base64.b64decode(image_base64)
+            # Open image with PIL and resize to MAX_WIDTH x MAX_HEIGHT if needed
+            img = Image.open(BytesIO(image_bytes))
+            img.thumbnail((MAX_WIDTH, MAX_HEIGHT))
+            img.save(save_path)
 
-        with open(save_path, "wb") as f:
-            f.write(image_bytes)
+            return save_path
 
-        return save_path
+        except Exception as e:
+            attempt += 1
+            print(f"[Attempt {attempt}] Image generation failed for prompt: '{prompt}'. Error: {e}")
+            time.sleep(5)
 
-    except Exception as e:
-        print(f"Image generation failed for prompt: {prompt}, Error: {e}")
-        # Fallback placeholder
-        placeholder_url = "https://via.placeholder.com/1080x1920.png?text=Image+Error"
-        r = requests.get(placeholder_url)
+    # Fallback placeholder if all attempts fail
+    print(f"All attempts failed. Using placeholder for prompt: '{prompt}'")
+    placeholder_url = f"https://via.placeholder.com/{MAX_WIDTH}x{MAX_HEIGHT}.png?text=Image+Error"
+    try:
+        r = requests.get(placeholder_url, timeout=10)
         with open(save_path, "wb") as f:
             f.write(r.content)
-        return save_path
+    except Exception as e:
+        print(f"Placeholder download failed: {e}")
+
+    return save_path
